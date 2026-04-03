@@ -1,0 +1,33 @@
+To move this service from a prototype to a production-ready application, the
+  following key areas need to be addressed:
+
+  1. Implement Real External API Integrations
+   * Instagram & YouTube: Uncomment and finalize the httpx logic in
+     instagram_fetcher.py and youtube_fetcher.py to make actual API calls. Implement
+     proper authentication (e.g., User/Page Access Tokens for Graph API).
+   * TikTok Fetcher: Create a tiktok_fetcher.py. The config.py has a TIKTOK_API_KEY,
+     but the service to fetch TikTok data is missing.
+
+  2. Replace Rule-Based Logic with Real Machine Learning
+   * The calculate_authenticity_score function currently uses a simple math formula
+     (base + er * 1.5). To be an actual "ML Service", you need to train and integrate
+     a real model (e.g., using scikit-learn, PyTorch, or TensorFlow) that detects bot
+     activity and calculates authenticity based on historical dataset patterns.
+
+  3. Implement Redis Caching
+   * The project's README.md mentions Redis optimization, and redis is likely in your
+     requirements.txt, but logic.py currently uses Python's built-in
+     functools.lru_cache. This needs to be replaced with a real Redis connection
+     (e.g., using redis.asyncio) so the cache is distributed and persists across
+     multiple workers/containers.
+
+  4. Refine the Pricing Engine
+   * The suggest_pricing function uses hardcoded multipliers for a few niches
+     (fitness, tech, lifestyle, fashion). This needs to be expanded and ideally driven
+     by a dynamic data source or an ML model trained on real-world campaign pricing
+     data.
+
+  5. Resiliency & Error Handling
+   * Implement robust error handling, retry mechanisms (e.g., using the tenacity
+     library), and rate limiting for the external social media API calls, as these
+     APIs frequently throttle requests.

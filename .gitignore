@@ -1,0 +1,28 @@
+# General
+node_modules/
+dist/
+build/
+.env
+tmp_storage/
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+.DS_Store
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+
+# Backend
+backend/venv/
+backend/.venv/
+backend/__pycache__/
+backend/campaigns_db.json
+
+# Blockchain
+blockchain/node_modules/
+blockchain/artifacts/
+blockchain/cache/

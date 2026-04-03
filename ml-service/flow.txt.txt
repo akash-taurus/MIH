@@ -1,0 +1,547 @@
+Prompts for 6 Developers to Build the Platform in Parallel
+These prompts are designed so that six people can work independently, each producing code that integrates seamlessly when combined. Each role includes clear interfaces (API contracts, ABIs, data models) to ensure compatibility.
+
+Role 1: ML/AI Engineer – Authenticity Scoring & Pricing Engine
+Your Task: Build the AI-driven services that evaluate creator authenticity and suggest fair pricing. You will provide REST APIs that the backend will consume.
+
+Responsibilities
+Authenticity Scoring Service
+
+Accepts a social media handle and platform (Instagram, TikTok, YouTube).
+
+Fetches public profile data (followers, engagement, growth, etc.) using official APIs or ethical scraping.
+
+Computes a credibility score (0–100) with interpretable factors (e.g., follower growth spikes, engagement consistency).
+
+Returns JSON: { score, factors: [{ name, value, impact }], explanation }.
+
+Pricing Recommendation Service
+
+Accepts { authenticityScore, followerCount, niche, campaignType }.
+
+Outputs { minPrice, maxPrice, suggestedPrice } based on a rule-based formula or a trained model.
+
+Data Pipeline
+
+Implement caching (Redis or in-memory) to avoid redundant API calls.
+
+Handle rate limits and errors gracefully.
+
+Deliverables
+Python FastAPI application with two endpoints:
+
+POST /api/score – body { platform, handle } → returns score JSON.
+
+POST /api/pricing – body { authenticityScore, followerCount, niche, campaignType } → returns price JSON.
+
+A Dockerfile for containerization.
+
+Documentation: API spec (OpenAPI), how to run locally, and environment variables needed (API keys).
+
+Dependencies
+You will need API keys for social platforms (Instagram, TikTok, YouTube). Use free tiers or mock data initially.
+
+The backend team will call your endpoints. You must agree on the exact request/response formats (see below).
+
+Interface Contract (to be shared with backend)
+Scoring endpoint
+Request:
+
+json
+{ "platform": "instagram", "handle": "john_doe" }
+Response:
+
+json
+{
+  "score": 78,
+  "factors": [
+    { "name": "follower_growth", "value": 0.02, "impact": "positive" },
+    { "name": "engagement_rate", "value": 3.5, "impact": "positive" },
+    { "name": "bot_likelihood", "value": 0.15, "impact": "negative" }
+  ],
+  "explanation": "Audience is growing steadily with good engagement. Minor bot activity detected."
+}
+Pricing endpoint
+Request:
+
+json
+{
+  "authenticityScore": 78,
+  "followerCount": 50000,
+  "niche": "fitness",
+  "campaignType": "instagram_post"
+}
+Response:
+
+json
+{
+  "minPrice": 300,
+  "maxPrice": 500,
+  "suggestedPrice": 400
+}
+Implementation Guidelines
+Start with rule-based heuristics for scoring (e.g., follower growth < 10% per month = good, engagement rate > 2% = good). You can later replace with a trained ML model.
+
+Use httpx or requests for API calls. Store credentials in environment variables.
+
+For caching, use @lru_cache or a simple dictionary with TTL (time-to-live).
+
+Sync Instructions
+Create a branch ml-service.
+
+Commit your code and Dockerfile.
+
+Provide a README.md with setup steps.
+
+After merging to main, the backend team will use your service via the agreed API.
+
+Role 2: Smart Contract Developer – Escrow & Milestone Automation
+Your Task: Develop and deploy a Solidity smart contract that handles campaign escrow, milestone verification, and automated payments. You will provide the ABI and deployment addresses for the backend to interact with.
+
+Responsibilities
+Design Contract CampaignEscrow.sol
+
+Manages multiple campaigns, each with milestones.
+
+Funds are deposited by the brand and held in escrow.
+
+Milestones are confirmed (e.g., by an oracle or manually) and then payments are released to the creator.
+
+Includes dispute resolution mechanism.
+
+Implement Core Functions
+
+createCampaign(address creator, uint256 budget, Milestone[] calldata milestones) → uint256 campaignId
+
+depositFunds(uint256 campaignId) payable – total deposit must equal budget.
+
+confirmMilestone(uint256 campaignId, uint256 milestoneIndex) – called by authorized entity (oracle or brand).
+
+releasePayment(uint256 campaignId, uint256 milestoneIndex) – transfers milestone payment to creator.
+
+disputeCampaign(uint256 campaignId) – freezes campaign.
+
+resolveDispute(uint256 campaignId, bool payCreator) – admin function.
+
+Define Events
+
+CampaignCreated(uint256 indexed campaignId, address indexed brand, address indexed creator, uint256 budget)
+
+MilestoneConfirmed(uint256 indexed campaignId, uint256 milestoneIndex)
+
+PaymentReleased(uint256 indexed campaignId, uint256 milestoneIndex, uint256 amount, address recipient)
+
+DisputeRaised(uint256 indexed campaignId)
+
+Testing & Deployment
+
+Write Hardhat tests for all functions.
+
+Deploy to local Hardhat network and then to Sepolia testnet.
+
+Verify contract on Etherscan.
+
+Deliverables
+Solidity contract code (CampaignEscrow.sol) with OpenZeppelin imports (e.g., Ownable, ReentrancyGuard).
+
+Hardhat deployment scripts and test suite.
+
+Generated ABI and deployment addresses (for Sepolia).
+
+Documentation: how to interact with contract (functions, events, expected gas).
+
+Dependencies
+The backend team will need your ABI and contract address to call functions.
+
+You may need to collaborate on how milestones are verified (e.g., using a simple boolean that brand can set; later replace with Chainlink oracle). For MVP, allow the brand or an admin to call confirmMilestone after off-chain verification.
+
+Interface Contract (to be shared with backend)
+ABI will be provided.
+
+Functions as described above.
+
+Events to listen to.
+
+Implementation Guidelines
+Use OpenZeppelin @openzeppelin/contracts for security.
+
+Store milestones in an array; each milestone has description, requiredAction (string), targetValue (uint), isCompleted (bool), paymentAmount (uint).
+
+Keep a mapping campaignId => Campaign struct.
+
+Use require statements for validation (e.g., only brand can confirm milestones initially).
+
+Gas optimizations: avoid loops over unknown length arrays; use uint256 for IDs.
+
+Sync Instructions
+Create branch smart-contract.
+
+Provide ABI in artifacts/contracts/CampaignEscrow.sol/CampaignEscrow.json or export as JSON.
+
+Include deployment addresses in a .env.example file.
+
+After merging, the backend will use these artifacts.
+
+Role 3: Backend Developer – API & Integration Layer
+Your Task: Build the backend server that orchestrates everything: user management, campaign data, and integration with the AI scoring service and smart contract.
+
+Responsibilities
+User Authentication
+
+JWT-based registration/login for brands and creators.
+
+Store user profiles (email, role, wallet address, social handles) in PostgreSQL.
+
+Database Models
+
+User – id, email, role, walletAddress, socialHandles (JSON), createdAt.
+
+Campaign – id, brandId, creatorId, blockchainCampaignId, budget, status, milestones (JSON), createdAt.
+
+Milestone – id, campaignId, description, requiredAction, targetValue, isCompleted, paymentAmount, blockchainConfirmed.
+
+Payment – id, campaignId, milestoneId, amount, transactionHash, status.
+
+AuditLog – id, userId, action, timestamp, metadata.
+
+API Endpoints (REST)
+
+POST /auth/register, /auth/login, GET /auth/me
+
+GET /creators/search?platform=ig&handle=... – calls ML scoring service and returns result.
+
+GET /creators/:id/profile – returns stored creator data.
+
+POST /campaigns – creates campaign in DB and calls smart contract createCampaign.
+
+GET /campaigns – list campaigns for authenticated user.
+
+GET /campaigns/:id – detailed view with milestones.
+
+POST /campaigns/:id/milestones/:index/verify – manual verification (for MVP) that triggers contract confirmMilestone.
+
+POST /pricing/recommend – calls ML pricing endpoint and returns result.
+
+GET /payments – list payments.
+
+Blockchain Integration
+
+Use ethers.js to connect to the deployed contract.
+
+On campaign creation: call createCampaign and store returned campaignId.
+
+Listen to contract events (via WebSocket or polling) to update DB status when milestones are confirmed or payments released.
+
+Implement a webhook that can be called by an external oracle (or manually) to confirm milestones after off-chain verification (e.g., check post engagement).
+
+Caching & Performance
+
+Cache scoring results (Redis optional) to avoid repeated ML calls.
+
+Deliverables
+Node.js (Express) or Python (FastAPI) application with all endpoints.
+
+PostgreSQL schema (using Prisma or TypeORM).
+
+Dockerfile for backend service.
+
+Swagger/OpenAPI documentation.
+
+.env.example with required variables (database URL, contract address, ML service URL).
+
+Dependencies
+You need the ML service URL from Role 1.
+
+You need the contract ABI and address from Role 2.
+
+You will coordinate with Role 4 (frontend) on API contracts.
+
+Interface Contract (to be shared with frontend)
+All endpoints should return consistent JSON.
+
+Example: GET /campaigns/:id returns:
+
+json
+{
+  "id": 1,
+  "brandId": 2,
+  "creatorId": 3,
+  "blockchainCampaignId": 42,
+  "budget": 1000,
+  "status": "active",
+  "milestones": [
+    {
+      "id": 1,
+      "description": "Post Instagram photo",
+      "isCompleted": false,
+      "paymentAmount": 500
+    }
+  ]
+}
+Implementation Guidelines
+Use ethers to interact with contract. Set up provider (e.g., Infura for Sepolia).
+
+For event listening, use contract.on("CampaignCreated", (campaignId, brand, creator, budget) => { ... }) and update DB.
+
+Use environment variables for sensitive data.
+
+Sync Instructions
+Create branch backend.
+
+Provide OpenAPI spec in api-docs.yaml.
+
+After merging, frontend will use your deployed API.
+
+Role 4: Frontend Developer – Dashboard for Brands & Creators
+Your Task: Build a React-based dashboard that allows brands and creators to interact with the platform. The dashboard will consume the backend API and connect to the blockchain for wallet interactions.
+
+Responsibilities
+Authentication & User Management
+
+Signup/login forms.
+
+Role-based routing (brand vs. creator views).
+
+JWT token storage (httpOnly or localStorage).
+
+Creator Dashboard
+
+Display authenticity score (from backend).
+
+Show active campaigns and past payments.
+
+Allow profile editing (social handles).
+
+Connect wallet (MetaMask) and show balance.
+
+Brand Dashboard
+
+Search for creators by handle – displays score with explanation.
+
+View creator profiles with score breakdown chart.
+
+Campaign creation wizard:
+
+Select creator, set budget, define milestones.
+
+Get pricing recommendation from backend and show it.
+
+List ongoing campaigns with progress (stepper).
+
+View detailed campaign page: milestones, ability to verify (if brand is authorized).
+
+Deposit funds to contract (MetaMask transaction).
+
+Web3 Integration
+
+Connect to MetaMask, switch network to Sepolia.
+
+Call contract functions via ethers.js (e.g., depositFunds).
+
+Show transaction confirmations and error messages.
+
+Visualizations
+
+Donut chart for score breakdown.
+
+Timeline of campaign progress.
+
+Engagement graph (if data available).
+
+Deliverables
+React application with routing, state management (Context or Redux).
+
+Tailwind CSS for styling.
+
+Integration with ethers.js for blockchain.
+
+Dockerfile for frontend.
+
+.env.example with API_URL and contract address.
+
+Dependencies
+You need the backend API endpoints (Role 3) – coordinate with backend developer to finalize request/response formats.
+
+You need the contract ABI and address (Role 2) for wallet interactions.
+
+Implementation Guidelines
+Use axios for API calls.
+
+Use ethers for contract interaction.
+
+For charts, use chart.js with react-chartjs-2.
+
+Implement loading states and error handling.
+
+Sync Instructions
+Create branch frontend.
+
+After backend and smart contract are ready, integrate.
+
+Provide a demo video of the UI flow.
+
+Role 5: DevOps / Infrastructure Engineer – Deployment & CI/CD
+Your Task: Set up the infrastructure to deploy all services, ensure they can communicate, and automate the deployment process.
+
+Responsibilities
+Containerization
+
+Create Dockerfiles for each service (ML, backend, frontend).
+
+Write a docker-compose.yml for local development to run all services together.
+
+Cloud Deployment
+
+Deploy ML service to Render (or similar) with environment variables.
+
+Deploy backend to Render (or AWS) with PostgreSQL database.
+
+Deploy frontend to Vercel (or Netlify).
+
+Configure CORS to allow frontend to communicate with backend.
+
+CI/CD Pipeline
+
+Set up GitHub Actions to run tests and deploy on push to main branch.
+
+Include environment-specific variables.
+
+Monitoring & Logging
+
+Basic logging for each service (e.g., console logs, and optional log aggregation).
+
+Health check endpoints.
+
+Deliverables
+Dockerfiles for each service.
+
+docker-compose.yml for local testing.
+
+GitHub Actions workflows (.github/workflows/deploy.yml).
+
+Documentation on how to deploy and access the live services.
+
+Dependencies
+You will work with all other roles to ensure their code is containerizable.
+
+You need the final code from others to create deployment configurations.
+
+Implementation Guidelines
+For local development, docker-compose should start all services and link them.
+
+Use environment variables for secrets; never hardcode.
+
+For database, use a managed PostgreSQL service (e.g., Render's built-in DB) in production.
+
+Sync Instructions
+Create branch devops.
+
+After others have merged their code, you'll add deployment files.
+
+Provide a README.md section for deployment steps.
+
+Role 6: Tester / QA Engineer – Integration Testing & Quality Assurance
+Your Task: Ensure all components work together correctly, write integration tests, and verify that the platform meets the functional requirements.
+
+Responsibilities
+Integration Test Suite
+
+Write automated tests (e.g., using Postman/Newman or a testing framework like Jest) that simulate the full user flow:
+
+Brand registers, logs in.
+
+Searches for a creator, gets authenticity score.
+
+Creates a campaign (calls backend, which interacts with contract).
+
+Deposits funds via MetaMask (simulate using a test account).
+
+Milestone verified (via API) and payment released.
+
+Verify database state and blockchain state.
+
+Manual Testing
+
+Perform exploratory testing on the deployed demo.
+
+Test edge cases: invalid handles, insufficient funds, dispute resolution.
+
+Bug Reporting
+
+Use GitHub Issues to track bugs.
+
+Work with developers to reproduce and fix.
+
+Performance & Security
+
+Basic load testing (optional).
+
+Check for common vulnerabilities (e.g., SQL injection, XSS).
+
+Deliverables
+Automated integration test scripts (e.g., Postman collection + Newman).
+
+Test report summarizing test coverage and found issues.
+
+List of verified user stories.
+
+Dependencies
+You need a fully deployed environment (from Role 5) with all services running.
+
+You need the smart contract deployed on a testnet (Role 2) with test funds available.
+
+You need API documentation from Role 3.
+
+Implementation Guidelines
+Use Postman to create a collection of API calls, and use Newman to run them in CI.
+
+For blockchain testing, use a deterministic test account (e.g., from Hardhat).
+
+For integration, you may need to use a wallet that can sign transactions programmatically.
+
+Sync Instructions
+Create branch qa.
+
+Provide a tests/ directory with scripts and a README.md on how to run them.
+
+After merging, the team will have a regression test suite.
+
+How to Sync All Code Together
+Repository: All developers work in a single GitHub repository (monorepo) with the following structure:
+
+text
+/
+  ml-service/
+  smart-contracts/
+  backend/
+  frontend/
+  docker/
+  .github/workflows/
+Branch Strategy:
+
+Each role works on their own branch (ml-service, smart-contract, backend, frontend, devops, qa).
+
+Use pull requests to merge into main.
+
+After merging, the DevOps engineer ensures the deployment pipelines are updated.
+
+Environment Variables:
+
+Each service has its own .env.example.
+
+The DevOps engineer collects all required variables and sets them in the deployment platform.
+
+API Contracts:
+
+The backend developer defines the API spec (OpenAPI) and shares it with the frontend and ML engineer.
+
+The ML engineer must implement the scoring endpoint exactly as specified.
+
+The smart contract developer provides ABI and address to backend and frontend.
+
+Integration Testing:
+
+After each PR merge, the CI runs the integration tests (provided by QA) to ensure nothing breaks.
+
+By following these role assignments and contracts, the six developers can work in parallel and produce a cohesive, fully functional platform.
+
